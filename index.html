@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="standalone-build" content="1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="採点ラボ">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#EDEFF4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>ボルダー採点ラボ</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one-column phone app — upload & hold pick → analysis → scoreboard, full-bleed player with frame controls, 133pt detail, timeline, radar → criteria → history */
+:root{
+  --bg:#EDEFF4; --surface:#FFFFFF; --ink:#151A26; --muted:#596178; --line:#D6DAE4;
+  --accent:#2747D8; --accent-soft:rgba(39,71,216,.12); --on-accent:#FFFFFF; --bad:#C8253F; --bad-soft:rgba(200,37,63,.13); --good:#1E8657;
+  --pl-bg:#05070B; --pl-band:#11151E; --pl-ink:#E8EBF2; --pl-muted:#8C94A8; --pl-line:#262C3A; --pl-on:#7DF0FF;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1117; --surface:#171B24; --ink:#E8EBF2; --muted:#98A0B4; --line:#2A3040;
+  --accent:#7D95FF; --accent-soft:rgba(125,149,255,.16); --on-accent:#0E1117; --bad:#FF5F74; --bad-soft:rgba(255,95,116,.16); --good:#4CC38A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1117; --surface:#171B24; --ink:#E8EBF2; --muted:#98A0B4; --line:#2A3040;
+  --accent:#7D95FF; --accent-soft:rgba(125,149,255,.16); --on-accent:#0E1117; --bad:#FF5F74; --bad-soft:rgba(255,95,116,.16); --good:#4CC38A; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+body.lock{overflow:hidden}
+.app{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:6px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:28px;letter-spacing:.02em;line-height:1}
+.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.04em;margin-top:6px}
+.chip{font-family:var(--f-mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px;white-space:nowrap}
+section.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h2{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin:0}
+h2 span{font-weight:500;letter-spacing:0}
+.upload label.big{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;border-radius:12px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:17px;cursor:pointer}
+.upload label.big:focus-within{outline:3px solid var(--accent-soft);outline-offset:3px}
+input.hide{position:absolute;opacity:0;width:1px;height:1px}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.meta label,.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
+select,input[type=text]{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+select:focus,input:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+ul.tips{margin:0;padding-left:1.2em;color:var(--muted);font-size:13px}
+.note{font-size:12px;color:var(--muted);margin:0}
+.progress{display:flex;flex-direction:column;gap:8px}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap}
+.mono{font-family:var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+button,.filebtn{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700;padding:10px 16px;font-size:15px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.err{color:var(--bad);font-size:13px;margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:nowrap;max-width:100%}
+.seg button{border:0;border-radius:0;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+
+/* hold pick */
+.pick{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px}
+.pick-step{font-weight:700;font-size:15px;margin:0}
+.pick-canvas-wrap{margin-inline:-18px;background:#000;display:flex;justify-content:center}
+#pickCanvas{display:block;max-width:100%;touch-action:manipulation;cursor:crosshair}
+.pick-info{display:flex;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:30px;height:30px;border-radius:7px;border:2px solid var(--line);padding:0;position:relative}
+.sw::after{content:"×";position:absolute;right:-6px;top:-8px;font-size:12px;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:50%;width:16px;height:16px;line-height:14px;text-align:center}
+.range{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.range input{flex:1;min-width:0;accent-color:var(--accent)}
+.pick-actions{display:flex;gap:10px;flex-wrap:wrap}
+.legend-row{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend-row span{display:inline-flex;align-items:center;gap:6px}
+.legend-row i{display:inline-block;width:14px;height:10px;border:2px solid}
+
+/* scoreboard */
+.score-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.score{font-family:var(--f-display);font-weight:700;font-size:76px;line-height:.85;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.score sub{font-family:var(--f-mono);font-size:14px;font-weight:500;color:var(--muted);vertical-align:baseline;margin-left:4px;letter-spacing:0}
+.score-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right;min-width:0}
+.tag{font-size:11px;font-weight:700;letter-spacing:.06em;background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:2px 8px}
+.title-line{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.delta{font-family:var(--f-mono);font-size:13px}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+.crux{border-left:4px solid var(--bad);background:var(--bad-soft);border-radius:0 10px 10px 0;padding:10px 14px;display:flex;flex-direction:column;gap:4px}
+.crux .lbl{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.03em;color:var(--bad);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.crux .lbl .tc{font-family:var(--f-mono);font-size:14px;font-weight:500}
+.crux p{margin:0;font-size:14px}
+.crux.calm{border-left-color:var(--good);background:var(--accent-soft)} .crux.calm .lbl{color:var(--good)}
+
+/* player (always dark, like a video app) */
+.player{margin-inline:-18px;background:var(--pl-bg);color:var(--pl-ink);display:flex;flex-direction:column}
+.stage{position:relative;width:100%;overflow:hidden;touch-action:none;cursor:ew-resize;background:var(--pl-bg)}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage .hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:11px;color:var(--pl-muted);background:rgba(0,0,0,.55);border-radius:99px;padding:2px 10px;pointer-events:none;white-space:nowrap}
+.pl-band{background:var(--pl-band);display:flex;flex-direction:column;gap:8px;padding:10px max(12px,env(safe-area-inset-right,0px)) 12px max(12px,env(safe-area-inset-left,0px))}
+.pl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pl-row.main{justify-content:space-between}
+.pl-band button{background:transparent;color:var(--pl-ink);border-color:var(--pl-line);min-height:40px;min-width:44px;font-size:14px}
+.pl-band button.on{background:rgba(125,240,255,.14);border-color:var(--pl-on);color:var(--pl-on)}
+.pl-band .seg{border-color:var(--pl-line)}
+.pl-band .seg button+button{border-left-color:var(--pl-line)}
+.pl-band button.play{min-width:64px;font-weight:700}
+#scrub{width:100%;accent-color:var(--pl-on);margin:0;height:28px}
+.pl-tc{font-family:var(--f-mono);font-size:12px;color:var(--pl-muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.pl-tc b{color:var(--pl-ink);font-weight:500}
+.pl-toggles{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.pl-toggles button{min-height:34px;font-size:12.5px;white-space:nowrap;flex:none}
+.player.full{position:fixed;inset:0;margin:0;z-index:60;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.player.full .stage{flex:1;min-height:0;height:auto!important}
+.ph{border:1px dashed var(--line);border-radius:10px;padding:22px 16px;text-align:center;color:var(--muted);font-size:13px}
+.key{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--pl-muted)}
+.key span{display:inline-flex;align-items:center;gap:6px}
+.key i{display:inline-block;width:10px;height:10px;border-radius:50%}
+
+/* 133 */
+.wb{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:12px;padding:14px}
+.wb-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.wb a{color:var(--accent);overflow-wrap:anywhere}
+.wb code{font-family:var(--f-mono);font-size:12px;background:var(--bg);padding:1px 6px;border-radius:4px;overflow-wrap:anywhere}
+
+.chart-wrap{overflow-x:auto}
+svg text{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+#timeline{width:100%;height:auto;display:block;touch-action:none;cursor:pointer;min-width:320px}
+
+.axes-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:center}
+@media (max-width:540px){.axes-grid{grid-template-columns:1fr}}
+#radar{width:100%;max-width:300px;height:auto;justify-self:center}
+.axis-list{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.axis-list li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.axis-list .n{font-weight:700;font-size:14px}
+.axis-list .v{font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums}
+.axis-list .v b{font-family:var(--f-display);font-size:20px;font-weight:700}
+.axis-list .raw{grid-column:1/-1;font-size:12.5px;color:var(--ink)}
+.axis-list .d{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.axis-list .track{grid-column:1/-1;height:5px;background:var(--line);border-radius:9px;overflow:hidden}
+.axis-list .track i{display:block;height:100%;background:var(--accent)}
+.axis-list li.weak .track i{background:var(--bad)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:14px;height:3px;margin-right:6px;vertical-align:middle;background:var(--accent)}
+.legend span.prev::before{background:transparent;border-top:2px dashed var(--muted);height:0}
+a.inline{color:var(--accent);font-size:13px;font-weight:500}
+
+/* criteria */
+.crit details{border-top:1px solid var(--line);padding:10px 0}
+.crit details:first-of-type{border-top:0}
+.crit summary{cursor:pointer;font-weight:700;font-size:15px;list-style:none;display:flex;justify-content:space-between;gap:10px}
+.crit summary::-webkit-details-marker{display:none}
+.crit summary::after{content:"＋";color:var(--muted);font-weight:500}
+.crit details[open] summary::after{content:"−"}
+.crit summary small{font-weight:500;color:var(--muted);font-size:12px;margin-left:8px}
+.crit .body{display:flex;flex-direction:column;gap:8px;padding-top:8px;font-size:14px}
+.crit .body p{margin:0}
+.crit table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+.crit th,.crit td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+.crit th{font-size:12px;color:var(--muted);font-weight:500}
+.crit td.pt{font-family:var(--f-mono);text-align:right;white-space:nowrap}
+.crit th.pt{text-align:right}
+.tbl{overflow-x:auto}
+.crit .formula{font-family:var(--f-mono);font-size:12.5px;background:var(--bg);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+
+.hist-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+ol.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ol.hist li{border-top:1px solid var(--line)}
+ol.hist li:first-child{border-top:0}
+ol.hist button.row{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 4px;cursor:pointer;border-radius:8px}
+ol.hist button.row:focus-visible{outline:2px solid var(--accent)}
+ol.hist img,ol.hist .noimg{width:52px;height:52px;border-radius:8px;object-fit:cover;background:var(--bg);display:block}
+.h-main{min-width:0}
+.h-main .t{display:block;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-main .s{display:block;font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.h-score{font-family:var(--f-display);font-weight:700;font-size:26px;font-variant-numeric:tabular-nums;text-align:right;line-height:1}
+.h-score small{display:block;font-family:var(--f-body);font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.06em}
+ol.hist li.active button.row{background:var(--accent-soft)}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:12px 0}
+.danger{color:var(--bad);border-color:transparent;background:transparent;padding:4px 0}
+footer{font-size:12px;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header class="top">
+    <div class="brand">ボルダー採点ラボ<small>登りを撮って、100点満点で採点</small></div>
+    <span class="chip" id="histCount">履歴 0本</span>
+  </header>
+
+  <section class="panel upload" id="uploadPanel">
+    <h2>新しいトライを解析</h2>
+    <div class="meta">
+      <label for="grade">グレード
+        <select id="grade"><option value="">未選択</option><option>8級</option><option>7級</option><option>6級</option><option>5級</option><option>4級</option><option>3級</option><option>2級</option><option>1級</option><option>初段</option><option>二段</option><option>三段</option></select>
+      </label>
+      <label for="wall">壁
+        <select id="wall"><option value="">未選択</option><option>スラブ</option><option>垂壁</option><option>かぶり</option><option>ルーフ</option></select>
+      </label>
+    </div>
+    <label class="field" for="memo">メモ（任意）<input type="text" id="memo" placeholder="例：ピンク課題 3本目" maxlength="40"></label>
+    <label class="big" for="file">登りの動画を選ぶ<input type="file" id="file" class="hide" accept="video/*"></label>
+    <ul class="tips" id="tips">
+      <li>全身と壁が入る位置から、なるべくスマホを固定して撮る</li>
+      <li>動画は最大2分。長い場合は最初の2分を解析</li>
+      <li>解析はこの端末の中だけで行い、動画はどこにも送りません</li>
+    </ul>
+
+    <div class="pick" id="pick" hidden>
+      <p class="pick-step">① 課題のホールドを指定</p>
+      <div class="seg" role="group" aria-label="指定のしかた"><button type="button" id="mColor" class="on">色でまとめて</button><button type="button" id="mAdd">1個ずつ追加</button><button type="button" id="mDel">消す</button></div>
+      <p class="note" id="modeHelp"></p>
+      <div class="pick-canvas-wrap"><canvas id="pickCanvas" aria-label="動画の最初のフレーム。タップしてホールドを指定"></canvas></div>
+      <div class="legend-row"><span><i style="border-color:#FF9F1C"></i>色で拾ったホールド</span><span><i style="border-color:#4DD4FF"></i>1個ずつ追加したホールド</span></div>
+      <div class="pick-info"><div class="swatches" id="swatches"></div><span id="pickStatus">まだ指定されていません</span></div>
+      <div class="range"><label for="tol">色の幅</label><input type="range" id="tol" min="6" max="40" value="16"><span id="tolVal" class="mono">16</span></div>
+      <p class="note">服や壁の模様まで拾う場合は「色の幅」を狭く、ホールドが拾えない場合は広くしてください。色が抜けて見えるホールドは、そのホールドもタップすると色が追加されます（最大5色）。</p>
+      <p class="pick-step" style="margin-top:6px">② 解析の細かさ</p>
+      <label class="field" for="density">1秒あたりのコマ数
+        <select id="density"><option value="30">細かい：30コマ/秒（コマ送りで1コマずつ見られる）</option><option value="15">ふつう：15コマ/秒（解析時間は約半分）</option></select>
+      </label>
+      <p class="note" id="densityNote"></p>
+      <div class="pick-actions"><button type="button" class="primary" id="startWith" disabled>このホールドで解析を始める</button><button type="button" id="startWithout">ホールド指定なしで解析</button><button type="button" id="pickReset">指定をやり直す</button><button type="button" id="pickCancel">やめる</button></div>
+    </div>
+
+    <div class="progress" id="progress" hidden>
+      <div class="prow"><span id="pLabel">準備中</span><span class="mono" id="pCount"></span></div>
+      <div class="bar"><i id="pBar"></i></div>
+      <div class="prow"><span class="note" id="pHint">初回はモデル（約11MB）の読み込みに少し時間がかかります</span><button type="button" id="cancel">中止</button></div>
+    </div>
+    <p class="err" id="err" hidden></p>
+  </section>
+
+  <section class="panel" id="resultPanel">
+    <div class="score-head">
+      <div class="score" id="score">--<sub>/100</sub></div>
+      <div class="score-side">
+        <span class="tag" id="sampleTag" hidden>サンプル結果</span>
+        <span class="tag" id="legacyTag" hidden>旧方式の採点</span>
+        <span class="title-line" id="titleLine"></span>
+        <span class="delta" id="delta"></span>
+      </div>
+    </div>
+    <div class="crux" id="crux"><div class="lbl">核心 <span class="tc" id="cruxTc"></span></div><p id="cruxText"></p></div>
+
+    <div class="player" id="player" hidden>
+      <div class="stage" id="stage">
+        <video id="video" playsinline muted preload="auto"></video>
+        <canvas id="view"></canvas>
+        <span class="hint" id="dragHint">左右にドラッグでコマ送り・タップで再生/停止</span>
+      </div>
+      <div class="pl-band">
+        <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="再生位置">
+        <div class="pl-tc"><span><b id="tcNow">0:00.0</b> / <span id="tcDur">0:00.0</span></span><span id="tcFrame">コマ 0 / 0</span><span id="tcScore"></span></div>
+        <div class="pl-row main">
+          <div class="pl-row">
+            <button type="button" id="bBack" aria-label="1コマ戻す">◀︎ 1コマ</button>
+            <button type="button" class="play" id="bPlay">再生</button>
+            <button type="button" id="bFwd" aria-label="1コマ進める">1コマ ▶︎</button>
+          </div>
+          <div class="pl-row">
+            <div class="seg" role="group" aria-label="再生速度"><button type="button" data-rate="0.25">0.25×</button><button type="button" data-rate="0.5">0.5×</button><button type="button" data-rate="1" class="on">1×</button></div>
+            <button type="button" id="bFull">全画面</button>
+          </div>
+        </div>
+        <div class="pl-toggles">
+          <button type="button" class="on" id="tFollow" aria-pressed="true">人物に寄る</button>
+          <button type="button" class="on" id="tSkel" aria-pressed="true">骨格</button>
+          <button type="button" class="on" id="tTrail" aria-pressed="true">重心の軌跡</button>
+          <button type="button" class="on" id="tHold" aria-pressed="true">ホールド・保持</button>
+          <button type="button" id="tWb" aria-pressed="false" hidden>133点</button>
+          <button type="button" id="jump">核心へ移動</button>
+        </div>
+        <div class="key"><span><i style="background:#FFD60A"></i>重心</span><span><i style="background:#2EE6A6"></i>保持中の手足</span><span><i style="border:2px solid #FF9F1C"></i>ホールド</span><span><i style="background:#FF8FD1"></i>手指（133点）</span></div>
+      </div>
+    </div>
+    <div class="ph" id="playerPh">動画を解析すると、ここで骨格と重心の軌跡を重ねて再生できます</div>
+
+    <div class="wb" id="wbBox" hidden>
+      <h2>133点で詳しく見る <span>（全身＋手指＋顔・足先）</span></h2>
+      <p class="note" id="wbStatus">モデル未読み込み</p>
+      <div class="wb-row" id="wbLoadRow">
+        <button type="button" id="wbLoad">モデルを読み込む</button>
+        <label class="filebtn" for="wbFile">モデルファイルを選ぶ<input type="file" id="wbFile" class="hide" accept=".onnx,application/octet-stream"></label>
+      </div>
+      <div class="note" id="wbGuide">133点モデル（DWPose・約134MB）は、このページから直接はダウンロードできません。iPhoneのSafariで下のリンクを開いて「ファイル」に保存し、「モデルファイルを選ぶ」から選んでください。一度読み込めばこのブラウザに保存され、次回からは選び直し不要です。<br><a href="https://huggingface.co/yzd-v/DWPose/resolve/main/dw-ll_ucoco_384.onnx?download=true" target="_blank" rel="noopener">dw-ll_ucoco_384.onnx をダウンロード</a><br><code>huggingface.co/yzd-v/DWPose</code></div>
+      <div class="wb-row" id="wbRun" hidden>
+        <div class="seg" role="group" aria-label="解析する区間"><button type="button" id="wbCrux" class="on">核心の区間</button><button type="button" id="wbHere">今の位置の前後2秒</button></div>
+        <span class="mono" id="wbRangeTxt"></span>
+        <button type="button" class="primary" id="wbStart">この区間を133点で解析</button>
+      </div>
+      <div class="progress" id="wbProg" hidden>
+        <div class="prow"><span id="wbPLabel">解析中</span><span class="mono" id="wbPCount"></span></div>
+        <div class="bar"><i id="wbPBar"></i></div>
+        <div class="prow"><span class="note" id="wbPHint"></span><button type="button" id="wbCancel">中止</button></div>
+      </div>
+      <p class="note">重いモデルなので、区間は最大8秒です。iPhoneでは1コマ1秒前後かかる見込みです。</p>
+    </div>
+
+    <h2>スコア推移 <span>（タップでその瞬間へ）</span></h2>
+    <div class="chart-wrap"><svg id="timeline" viewBox="0 0 640 200" role="img" aria-label="時間ごとのスコア推移"></svg></div>
+
+    <h2>5つの軸 <span>（各20点）</span></h2>
+    <div class="axes-grid">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <svg id="radar" viewBox="0 0 300 280" role="img" aria-label="5軸レーダーチャート"></svg>
+        <div class="legend"><span>今回</span><span class="prev" id="legPrev" hidden>前回</span></div>
+      </div>
+      <ul class="axis-list" id="axisList"></ul>
+    </div>
+    <a class="inline" href="#criteria">各軸の点数の決め方を見る</a>
+  </section>
+
+  <section class="panel crit" id="criteria">
+    <h2>採点基準</h2>
+    <div id="critBody"></div>
+  </section>
+
+  <section class="panel">
+    <div class="hist-head">
+      <h2>履歴</h2>
+      <div class="seg" role="group" aria-label="並べ替え"><button type="button" id="sDate" class="on">日付順</button><button type="button" id="sScore">スコア順</button></div>
+    </div>
+    <ol class="hist" id="hist"></ol>
+    <p class="note">履歴はこのブラウザにだけ保存されます。動画は保存しないので、骨格付きで見返すときは同じ動画を選び直してください。</p>
+    <button type="button" class="danger" id="clearHist" hidden>履歴をすべて削除</button>
+    <div id="confirmClear" class="prow" hidden><span class="note">本当に削除しますか？元に戻せません。</span><span style="display:flex;gap:8px"><button type="button" id="clearYes" class="danger" style="padding:6px 12px">削除する</button><button type="button" id="clearNo">やめる</button></span></div>
+  </section>
+
+  <footer>試作版です。姿勢推定は BlazePose（33点）、人物の位置合わせに MoveNet、詳細表示に DWPose（133点）を使い、5軸は独自ルールで算出しています。</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script>
+/*SCORING-START*/
+const AXES=[
+  {k:'support',n:'4点キープ',d:'手足が何本ホールドに乗っているか'},
+  {k:'smooth', n:'スムーズ', d:'急な加速・減速のロスが少ないか'},
+  {k:'variety',n:'ムーブ',   d:'両手両足を偏りなく使えているか'},
+  {k:'base',   n:'重心位置', d:'重心が握っているホールドの真下にあるか'},
+  {k:'lead',   n:'重心主導', d:'手より先に腰が動き出しているか'}
+];
+// 採点の調整用パラメータ（ここを変えると採点の厳しさが変わる）
+const CFG={
+  visMin:0.5,          // 点を信用する最低の確からしさ
+  bodyCm:50,           // 胴の長さ（肩の中点〜腰の中点）の目安。表示の換算用
+  diffSec:1/12,        // 速さ・加速度を測る間隔（秒）。コマ数を変えても基準が変わらないように時間で決める
+  win:0.75,            // 各軸の評価窓（前後の秒数）
+  contactSpeed:0.35,   // これより遅ければ手足は「止まっている」（胴の長さ/秒）
+  contactMin:0.3,      // この秒数以上止まっていたら「保持中」
+  holdPad:0.15,        // ホールドの枠からこの距離（胴の長さ）以内なら「ホールド上」
+  supportTable:[0,4,10,17,20],   // 保持中の本数 0〜4本 → 点数
+  accFree:1.0, accScale:5,       // スムーズ：この加速度（胴の長さ/秒²）までは満点、以降は減点
+  restMove:0.15,                 // ムーブ：窓内の手足の移動合計がこれ未満ならレスト（判定対象外）
+  baseFree:0.15, baseScale:0.4,  // 重心位置：このズレ（胴の長さ）までは満点、以降は減点
+  handMove:0.4, leadCorr:0.25, leadWin:1.2, leadLag:0.5, // 重心主導
+  cruxMin:3                       // 核心とみなす最小の落ち幅（点）
+};
+const LIMBS=[{n:'左手',pts:[15,17,19]},{n:'右手',pts:[16,18,20]},{n:'左足',pts:[31,27]},{n:'右足',pts:[32,28]}];
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const median=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y);const m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+function movAvg(arr,r){return arr.map((_,i)=>{let s=0,c=0;for(let j=i-r;j<=i+r;j++){const v=arr[j];if(v!=null&&!Number.isNaN(v)){s+=v;c++;}}return c?s/c:null;});}
+const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const interp=(x,tbl)=>{x=clamp(x,0,tbl.length-1);const i=Math.min(tbl.length-2,Math.floor(x));return tbl[i]+(tbl[i+1]-tbl[i])*(x-i);};
+const F={
+  support:c=>interp(c,CFG.supportTable),
+  smooth:a=>20*Math.exp(-Math.max(0,a-CFG.accFree)/CFG.accScale),
+  variety:H=>8+12*H,
+  base:e=>20*Math.exp(-Math.max(0,e-CFG.baseFree)/CFG.baseScale),
+  lead:lagSec=>clamp(12+8*lagSec/CFG.leadLag,4,20)
+};
+function nearHold(p,holds,pad){for(const h of holds){if(p.x>=h.x0-pad&&p.x<=h.x1+pad&&p.y>=h.y0-pad&&p.y<=h.y1+pad)return true;}return false;}
+
+// frames: [{t, flag, kp:[[x,y,vis]×33] | null}], holds: [{x0,y0,x1,y1}] | null  →  採点結果
+function scoreSeries(frames,fps,holds){
+  const n=frames.length,K=33,dt=1/fps;
+  if(n<4)return null;
+  const h=Math.max(1,Math.round(fps*CFG.diffSec));
+  const useHolds=holds&&holds.length>=3;
+  const R=[];const last=new Array(K).fill(null);
+  for(const f of frames){const row=[];for(let k=0;k<K;k++){const q=f.kp&&f.kp[k];if(q&&q[2]>=CFG.visMin){row[k]={x:q[0],y:q[1]};last[k]=row[k];}else row[k]=last[k];}R.push(row);}
+  for(let k=0;k<K;k++){const first=R.findIndex(r=>r[k]);if(first>0)for(let i=0;i<first;i++)R[i][k]=R[first][k];}
+  // 平滑化（前後 h コマ）
+  const S=R.map((r,i)=>r.map((p,k)=>{if(!p)return null;let sx=0,sy=0,c=0;for(let j=i-h;j<=i+h;j++){const q=R[j]&&R[j][k];if(q){sx+=q.x;sy+=q.y;c++;}}return{x:sx/c,y:sy/c};}));
+  const core=[11,12,23,24,15,16,27,28];
+  const vis=frames.map(f=>!!f.kp&&(f.flag??1)>=0.5&&mean(core.map(k=>f.kp[k][2]))>=CFG.visMin);
+  if(vis.filter(Boolean).length<4)return null;
+  const tl=[];S.forEach((r,i)=>{if(vis[i]&&r[11]&&r[12]&&r[23]&&r[24])tl.push(dist(mid(r[11],r[12]),mid(r[23],r[24])));});
+  const L=median(tl)||1;
+  const C=S.map(r=>r[11]&&r[12]&&r[23]&&r[24]?(()=>{const hp=mid(r[23],r[24]),s=mid(r[11],r[12]);return{x:hp.x*0.7+s.x*0.3,y:hp.y*0.7+s.y*0.3};})():null);
+  const E=S.map(r=>LIMBS.map(l=>{const ps=l.pts.map(k=>r[k]).filter(Boolean);if(!ps.length)return null;if(l.n.includes('足'))return ps[0];return{x:mean(ps.map(p=>p.x)),y:mean(ps.map(p=>p.y))};}));
+  const cd=(arr,i,f)=>{const i0=Math.max(0,i-h),i1=Math.min(n-1,i+h);const a=arr[i0],b=arr[i1];if(!a||!b||i1===i0)return null;return f(a,b,(i1-i0)*dt);};
+  // 手足の速さ（胴の長さ/秒）と保持中の判定
+  const spd=E.map((_,i)=>[0,1,2,3].map(k=>cd(E.map(r=>r[k]),i,(a,b,T)=>dist(a,b)/T/L)??0));
+  const minRun=Math.max(2,Math.ceil(CFG.contactMin*fps));
+  const contact=E.map(()=>[false,false,false,false]);
+  for(let k=0;k<4;k++){let i=0;while(i<n){if(vis[i]&&spd[i][k]<CFG.contactSpeed){let j=i;while(j+1<n&&vis[j+1]&&spd[j+1][k]<CFG.contactSpeed)j++;
+        if(j-i+1>=minRun){for(let q=i;q<=j;q++){const p=E[q][k];contact[q][k]=!!p&&(!useHolds||nearHold(p,holds,CFG.holdPad*L));}}i=j+1;}else i++;}}
+  // 重心の速度・加速度
+  const vel=C.map((_,i)=>cd(C,i,(a,b,T)=>({x:(b.x-a.x)/T/L,y:(b.y-a.y)/T/L})));
+  const speed=vel.map(v=>v?Math.hypot(v.x,v.y):0);
+  const acc=vel.map((_,i)=>cd(vel,i,(a,b,T)=>Math.hypot(b.x-a.x,b.y-a.y)/T)??0);
+  const lim=E.map((row,i)=>row.map((p,k)=>{const a=E[Math.max(0,i-1)][k];return p&&a?dist(p,a)/L:0;}));
+  const hand=spd.map(r=>Math.max(r[0],r[1]));
+  const w=Math.max(2,Math.round(fps*CFG.win)), wl=Math.max(3,Math.round(fps*CFG.leadWin)), lagMax=Math.max(1,Math.round(fps*CFG.leadLag));
+  const win=(i,r)=>{const o=[];for(let j=Math.max(0,i-r);j<=Math.min(n-1,i+r);j++)if(vis[j])o.push(j);return o;};
+  const ax={support:[],smooth:[],variety:[],base:[],lead:[]};
+  const raw={contacts:[],acc:[],H:[],e:[],lag:[]};
+  const refKind=[];
+  for(let i=0;i<n;i++){
+    if(!vis[i]){for(const a of AXES)ax[a.k].push(null);refKind.push(null);continue;}
+    const J=win(i,w);
+    const c=mean(J.map(j=>contact[j].filter(Boolean).length));raw.contacts.push(c);ax.support.push(F.support(c));
+    const pa=Math.max(...J.map(j=>acc[j]));raw.acc.push(pa);ax.smooth.push(F.smooth(pa));
+    const tot=[0,0,0,0];J.forEach(j=>lim[j].forEach((d,k)=>tot[k]+=d));const sum=tot.reduce((a,b)=>a+b,0);
+    if(sum<CFG.restMove)ax.variety.push(null);else{const H=-tot.reduce((hh,d)=>{const p=d/sum;return p>0?hh+p*Math.log(p):hh;},0)/Math.log(4);raw.H.push(H);ax.variety.push(F.variety(H));}
+    let kinds=[];
+    const e=mean(J.map(j=>{const ct=contact[j],ends=E[j];let idx=[0,1].filter(k=>ct[k]&&ends[k]),kind='hand';
+      if(!idx.length){idx=[0,1,2,3].filter(k=>ct[k]&&ends[k]);kind='limb';}
+      if(!idx.length){idx=[0,1,2,3].filter(k=>ends[k]);kind='all';}
+      kinds.push(kind);if(!idx.length||!C[j])return 0;return Math.abs(C[j].x-mean(idx.map(k=>ends[k].x)))/L;}));
+    refKind.push(kinds.filter(k=>k==='hand').length>=kinds.length/2?'hand':'other');
+    raw.e.push(e);ax.base.push(F.base(e));
+    const JL=win(i,wl);const a=JL.map(j=>speed[j]),b=JL.map(j=>hand[j]);
+    if(Math.max(...b)<CFG.handMove||JL.length<lagMax*2+3){ax.lead.push(null);}
+    else{const ma=mean(a),mb=mean(b);let best=-2,bt=0;
+      for(let t=-lagMax;t<=lagMax;t++){let s=0,sa=0,sb=0;for(let q=0;q<a.length;q++){const q2=q+t;if(q2<0||q2>=b.length)continue;const da=a[q]-ma,db=b[q2]-mb;s+=da*db;sa+=da*da;sb+=db*db;}const r=sa&&sb?s/Math.sqrt(sa*sb):0;if(r>best){best=r;bt=t;}}
+      if(best<CFG.leadCorr)ax.lead.push(null);else{raw.lag.push(bt/fps);ax.lead.push(F.lead(bt/fps));}}
+  }
+  const judged={};
+  for(const a of AXES){const ok=ax[a.k].filter((v,i)=>v!=null&&vis[i]);judged[a.k]=ok.length;const fill=ok.length?mean(ok):(a.k==='lead'?12:14);ax[a.k]=ax[a.k].map((v,i)=>vis[i]?(v??fill):null);}
+  const total=ax.support.map((v,i)=>v==null?null:AXES.reduce((s,a)=>s+ax[a.k][i],0));
+  const axesAvg={};for(const a of AXES)axesAvg[a.k]=mean(ax[a.k].filter(v=>v!=null));
+  const score=Math.round(AXES.reduce((s,a)=>s+axesAvg[a.k],0)*10)/10;
+  const smooth=movAvg(total,w).map((v,i)=>vis[i]?v:null);
+  const usageTot=[0,0,0,0];lim.forEach((r,i)=>{if(vis[i])r.forEach((d,k)=>usageTot[k]+=d);});const us=usageTot.reduce((a,b)=>a+b,0)||1;
+  const visN=vis.filter(Boolean).length;
+  const rawAvg={contacts:mean(raw.contacts),acc:mean(raw.acc),H:raw.H.length?mean(raw.H):null,e:mean(raw.e),
+    lag:raw.lag.length?mean(raw.lag):null,usage:usageTot.map(d=>d/us),
+    baseRef:refKind.filter(k=>k==='hand').length>=visN/2?'hand':'other',
+    judged:Object.fromEntries(AXES.map(a=>[a.k,judged[a.k]/visN])),holds:!!useHolds};
+  const edge=n/fps>6?Math.round(fps):0;
+  let iMin=-1;for(let i=edge;i<n-edge;i++){if(smooth[i]!=null&&(iMin<0||smooth[i]<smooth[iMin]))iMin=i;}
+  const base=median(smooth.filter(v=>v!=null));
+  let crux=null;
+  if(iMin>=0){const drop=base-smooth[iMin];
+    if(drop>=CFG.cruxMin){const th=base-drop*0.5;let i0=iMin,i1=iMin;
+      while(i0>0&&smooth[i0-1]!=null&&smooth[i0-1]<th)i0--;
+      while(i1<n-1&&smooth[i1+1]!=null&&smooth[i1+1]<th)i1++;
+      const reasons=AXES.map(a=>{const seg=ax[a.k].slice(i0,i1+1).filter(v=>v!=null);return{k:a.k,n:a.n,delta:mean(seg)-axesAvg[a.k]};}).sort((x,y)=>x.delta-y.delta);
+      crux={i0,i1,iMin,t0:i0/fps,t1:(i1+1)/fps,tMin:iMin/fps,drop,reasons};}}
+  return{fps,n,duration:n/fps,L,score,axesAvg,axes:ax,total,smooth,vis,crux,raw:rawAvg,contact,
+    kps:S.map(r=>r.map(p=>p?[Math.round(p.x*10)/10,Math.round(p.y*10)/10]:null)),
+    ends:E.map(r=>r.map(p=>p?[p.x,p.y]:null)),com:C.map(p=>p?[p.x,p.y]:null)};
+}
+
+/* ホールド検出 */
+function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;
+  if(d){if(mx===r)h=((g-b)/d)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360;}return{h,s:mx?d/mx:0,v:mx};}
+function colorMatcher(target,tol){
+  if(target.s>=0.22){const sMin=Math.max(0.16,target.s*0.4);
+    return(h,s,v)=>{const dh=Math.min(Math.abs(h-target.h),360-Math.abs(h-target.h));return dh<=tol&&s>=sMin&&v>=0.15&&Math.abs(v-target.v)<=0.5;};}
+  const dv=tol/100*2;return(h,s,v)=>s<=0.25&&Math.abs(v-target.v)<=dv;
+}
+function holdMask(data,w,h,targets,tol,into){
+  const m=into||new Uint8Array(w*h),oks=targets.map(t=>colorMatcher(t,tol));
+  for(let i=0,p=0;i<w*h;i++,p+=4){if(m[i])continue;const c=rgb2hsv(data[p],data[p+1],data[p+2]);for(const ok of oks){if(ok(c.h,c.s,c.v)){m[i]=1;break;}}}
+  return m;
+}
+function blobsFromMask(m,w,h){
+  const d=new Uint8Array(w*h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){if(!m[y*w+x])continue;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=y+dy;if(X>=0&&X<w&&Y>=0&&Y<h)d[Y*w+X]=1;}}
+  const seen=new Uint8Array(w*h),out=[],stack=new Int32Array(w*h);
+  const aMin=Math.max(8,w*h*0.00012),aMax=w*h*0.06;
+  for(let s=0;s<w*h;s++){if(!d[s]||seen[s])continue;let top=0;stack[top++]=s;seen[s]=1;let area=0,x0=w,y0=h,x1=0,y1=0;
+    while(top){const q=stack[--top];const x=q%w,y=(q/w)|0;area++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      if(x>0&&d[q-1]&&!seen[q-1]){seen[q-1]=1;stack[top++]=q-1;}if(x<w-1&&d[q+1]&&!seen[q+1]){seen[q+1]=1;stack[top++]=q+1;}
+      if(y>0&&d[q-w]&&!seen[q-w]){seen[q-w]=1;stack[top++]=q-w;}if(y<h-1&&d[q+w]&&!seen[q+w]){seen[q+w]=1;stack[top++]=q+w;}}
+    if(area>=aMin&&area<=aMax)out.push({x0,y0,x1:x1+1,y1:y1+1,area});}
+  return out;
+}
+// タップした1個だけを、周りの似た色の範囲として切り出す
+function regionGrow(data,w,h,px,py,tol){
+  let r=0,g=0,b=0,c=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=clamp(px+dx,0,w-1),Y=clamp(py+dy,0,h-1),p=(Y*w+X)*4;r+=data[p];g+=data[p+1];b+=data[p+2];c++;}
+  r/=c;g/=c;b/=c;const thr=16+tol*2.2,maxA=w*h*0.025;
+  const seen=new Uint8Array(w*h),stack=[py*w+px];seen[py*w+px]=1;let area=0,x0=px,y0=py,x1=px,y1=py;
+  while(stack.length){const q=stack.pop();const x=q%w,y=(q/w)|0,p=q*4;
+    if(Math.hypot(data[p]-r,data[p+1]-g,data[p+2]-b)>thr)continue;
+    area++;if(area>maxA)break;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+    for(const nq of[x>0?q-1:-1,x<w-1?q+1:-1,y>0?q-w:-1,y<h-1?q+w:-1])if(nq>=0&&!seen[nq]){seen[nq]=1;stack.push(nq);}}
+  const box=Math.round(w*0.035);
+  if(area>maxA||area<6)return{x0:clamp(px-box,0,w),y0:clamp(py-box,0,h),x1:clamp(px+box,0,w),y1:clamp(py+box,0,h),fallback:true};
+  return{x0:Math.max(0,x0-1),y0:Math.max(0,y0-1),x1:Math.min(w,x1+2),y1:Math.min(h,y1+2)};
+}
+/*SCORING-END*/
+
+/* ------------- 表示・解析まわり ------------- */
+const $=id=>document.getElementById(id);
+const STORE='boulder-lab-v1';
+const STANDALONE=!!document.querySelector('meta[name="standalone-build"]');
+const fmtT=s=>{s=Math.max(0,s);const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(1);};
+const fmtD=iso=>{const d=new Date(iso);return (d.getMonth()+1)+'/'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+const fmtDur=s=>s<60?`${Math.max(1,Math.round(s))}秒`:`${Math.floor(s/60)}分${String(Math.round(s%60)).padStart(2,'0')}秒`;
+const cm=l=>Math.round(l*CFG.bodyCm);
+function migrate(h){return h.map(x=>x.v===2?x:{...x,legacy:true,axesAvg:{support:x.axesAvg.stab??x.axesAvg.support??0,smooth:x.axesAvg.smooth,variety:x.axesAvg.variety,base:x.axesAvg.base,lead:x.axesAvg.lead}});}
+function loadHist(){try{return migrate(JSON.parse(localStorage.getItem(STORE)||'[]'));}catch(e){return[];}}
+function saveHist(h){try{localStorage.setItem(STORE,JSON.stringify(h.slice(0,60)));return true;}catch(e){try{localStorage.setItem(STORE,JSON.stringify(h.slice(0,20).map(x=>({...x,thumb:null}))));}catch(e2){}return false;}}
+let hist=loadHist(), sortBy='date', current=null, live=null, cancelled=false;
+const show={follow:true,skel:true,trail:true,hold:true,wb:false};
+
+/* --- サンプル --- */
+function sampleEntry(){
+  const fps=6,n=180,T=[],A={support:[],smooth:[],variety:[],base:[],lead:[]};
+  for(let i=0;i<n;i++){const t=i/fps;const dip=Math.exp(-((t-19.5)**2)/3.2);const wob=Math.sin(i*0.7)*0.6+Math.sin(i*0.23)*0.9;
+    A.support.push(17.2-5.4*dip+wob*0.3);A.smooth.push(15.4-6.6*dip+wob*0.4);A.variety.push(16.2-1.2*dip);A.base.push(14.1-2.8*dip+wob*0.2);A.lead.push(13.6-4.6*dip+wob*0.3);}
+  for(let i=0;i<n;i++)T.push(AXES.reduce((s,a)=>s+A[a.k][i],0));
+  const avg={};AXES.forEach(a=>avg[a.k]=mean(A[a.k]));
+  const sm=movAvg(T,3);const i0=Math.round(17.6*fps),i1=Math.round(21.6*fps);
+  return{id:'sample',sample:true,v:2,date:new Date().toISOString(),name:'サンプル',grade:'4級',wall:'かぶり',memo:'',
+    score:Math.round(AXES.reduce((s,a)=>s+avg[a.k],0)*10)/10,axesAvg:avg,fps,duration:n/fps,timeline:sm.map(v=>Math.round(v*10)/10),
+    raw:{contacts:3.1,acc:2.4,H:0.71,e:0.27,lag:0.06,usage:[0.31,0.29,0.21,0.19],baseRef:'hand',holds:true,judged:{support:1,smooth:1,variety:0.8,base:1,lead:0.55}},
+    crux:{t0:i0/fps,t1:i1/fps,tMin:19.5,drop:12.4,reasons:AXES.map(a=>({k:a.k,n:a.n,delta:mean(A[a.k].slice(i0,i1+1))-avg[a.k]})).sort((x,y)=>x.delta-y.delta)}};
+}
+
+/* --- 33点：MoveNet（人物探し）＋ BlazePose --- */
+let mn=null,bp=null;
+async function getModels(){
+  if(mn&&bp)return;
+  try{await tf.setBackend('webgl');}catch(e){await tf.setBackend('cpu');}
+  await tf.ready();
+  [mn,bp]=await Promise.all([tf.loadGraphModel('movenet-lightning.json'),tf.loadGraphModel('blazepose-full.json')]);
+  tf.tidy(()=>{mn.execute(tf.zeros([1,192,192,3],'int32'));bp.execute(tf.zeros([1,256,256,3]),['ld_3d','output_poseflag']);});
+}
+const mc=document.createElement('canvas');mc.width=mc.height=192;const mctx=mc.getContext('2d',{willReadFrequently:true});
+const bc=document.createElement('canvas');bc.width=bc.height=256;const bctx=bc.getContext('2d',{willReadFrequently:true});
+async function findPerson(video){
+  const vw=video.videoWidth,vh=video.videoHeight,s=Math.max(vw,vh),x0=(vw-s)/2,y0=(vh-s)/2,k=192/s;
+  mctx.fillStyle='#000';mctx.fillRect(0,0,192,192);mctx.drawImage(video,0,0,vw,vh,-x0*k,-y0*k,vw*k,vh*k);
+  const out=tf.tidy(()=>mn.execute(tf.browser.fromPixels(mc).toInt().expandDims(0)));const d=await out.data();out.dispose();
+  const kp=[];for(let i=0;i<17;i++)kp.push({x:x0+d[i*3+1]*s,y:y0+d[i*3]*s,c:d[i*3+2]});
+  if(kp.filter(q=>q.c>0.3).length<6)return null;
+  return roiFrom(kp.filter(q=>q.c>0.3),mid(kp[11],kp[12]),mid(kp[5],kp[6]),vw,vh);
+}
+function roiFrom(pts,hip,sh,vw,vh){
+  const r=Math.max(...pts.map(p=>Math.hypot(p.x-hip.x,p.y-hip.y)));
+  const size=clamp(r*2*1.25,Math.min(vw,vh)*0.15,Math.max(vw,vh)*1.5);
+  return{cx:hip.x,cy:hip.y,size,rot:Math.atan2(sh.x-hip.x,-(sh.y-hip.y))};
+}
+async function landmarks(video,roi){
+  bctx.setTransform(1,0,0,1,0,0);bctx.fillStyle='#000';bctx.fillRect(0,0,256,256);
+  const k=256/roi.size;bctx.translate(128,128);bctx.rotate(-roi.rot);bctx.scale(k,k);bctx.translate(-roi.cx,-roi.cy);
+  bctx.drawImage(video,0,0);bctx.setTransform(1,0,0,1,0,0);
+  const outs=tf.tidy(()=>bp.execute(tf.browser.fromPixels(bc).toFloat().div(255).expandDims(0),['ld_3d','output_poseflag']));
+  const [ld,fl]=await Promise.all([outs[0].data(),outs[1].data()]);outs.forEach(t=>t.dispose());
+  const cs=Math.cos(roi.rot),sn=Math.sin(roi.rot),q=roi.size/256,kp=[];
+  for(let i=0;i<33;i++){const lx=(ld[i*5]-128)*q,ly=(ld[i*5+1]-128)*q;kp.push([roi.cx+lx*cs-ly*sn,roi.cy+lx*sn+ly*cs,1/(1+Math.exp(-ld[i*5+3]))]);}
+  return{kp,flag:fl[0]};
+}
+const seek=(v,t)=>new Promise(res=>{if(Math.abs(v.currentTime-t)<1e-4&&v.readyState>=2){res();return;}const on=()=>{v.removeEventListener('seeked',on);res();};v.addEventListener('seeked',on);v.currentTime=t;});
+
+/* --- ホールド指定 --- */
+const PW=480;
+const pk={frames:[],w:0,h:0,samples:[],tol:16,colorBlobs:[],manual:[],removed:[],mode:'color',mask:null};
+const MODE_HELP={color:'課題のホールドを1つタップすると、同じ色のホールドをまとめて拾います。',add:'拾えなかったホールドをタップすると、その1個だけを追加します。',del:'ホールドではない枠（服・壁の模様など）をタップすると消せます。'};
+function grabFrame(v){const c=document.createElement('canvas');const h=Math.round(PW*v.videoHeight/v.videoWidth);c.width=PW;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(v,0,0,PW,h);return x.getImageData(0,0,PW,h);}
+let pendingFile=null;
+async function openPick(file){
+  const v=$('video');$('err').hidden=true;
+  if(current&&current.withVideo){current={entry:current.entry,withVideo:false};live=null;render();}
+  if(v.src)URL.revokeObjectURL(v.src);
+  v.src=URL.createObjectURL(file);v.load();
+  await new Promise((res,rej)=>{v.onloadeddata=res;v.onerror=()=>rej(new Error('この動画は読み込めませんでした。MP4かMOVの動画を選んでください。'));});
+  try{await v.play();v.pause();}catch(e){}
+  const d=v.duration||1;pk.frames=[];
+  for(const t of[Math.min(0.3,d/4),d*0.5,Math.max(0,d-0.3)]){await seek(v,t);pk.frames.push(grabFrame(v));}
+  pk.w=pk.frames[0].width;pk.h=pk.frames[0].height;
+  resetPick();pendingFile=file;
+  $('pick').hidden=false;$('tips').hidden=true;setMode('color');updateDensityNote();drawPick();
+  $('pick').scrollIntoView({block:'start',behavior:'auto'});
+}
+function resetPick(){pk.samples=[];pk.colorBlobs=[];pk.manual=[];pk.removed=[];pk.mask=null;recomputePick();}
+function finalHolds(){return pk.colorBlobs.filter(b=>!pk.removed.some(p=>p.x>=b.x0&&p.x<=b.x1&&p.y>=b.y0&&p.y<=b.y1)).concat(pk.manual);}
+function recomputePick(){
+  if(pk.samples.length){let m=null;for(const f of pk.frames)m=holdMask(f.data,pk.w,pk.h,pk.samples.map(s=>s.hsv),pk.tol,m);pk.mask=m;pk.colorBlobs=blobsFromMask(m,pk.w,pk.h);}
+  else{pk.mask=null;pk.colorBlobs=[];}
+  const n=finalHolds().length;
+  $('pickStatus').textContent=n?`ホールド ${n}個`+(n<3?'（3個以上必要です）':n>60?'（多すぎます。色の幅を狭めるか「消す」で整理）':''):'まだ指定されていません';
+  $('startWith').disabled=n<3;
+  $('swatches').innerHTML=pk.samples.map((s,i)=>`<button type="button" class="sw" data-i="${i}" style="background:rgb(${s.rgb.join(',')})" aria-label="${i+1}色目を外す"></button>`).join('');
+  drawPick();
+}
+function drawPick(){
+  const c=$('pickCanvas');if(!pk.frames.length||$('pick').hidden)return;
+  const wrapW=$('pick').clientWidth+36,maxH=window.innerHeight*0.72;let w=Math.min(wrapW,window.innerWidth),h=w*pk.h/pk.w;if(h>maxH){h=maxH;w=h*pk.w/pk.h;}
+  const dpr=window.devicePixelRatio||1;c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);c.style.width=w+'px';c.style.height=h+'px';
+  const x=c.getContext('2d');const t=document.createElement('canvas');t.width=pk.w;t.height=pk.h;const tx=t.getContext('2d');
+  const f0=pk.frames[0];
+  if(pk.mask){const im=tx.createImageData(pk.w,pk.h);for(let i=0;i<pk.mask.length;i++){const p=i*4,k=pk.mask[i]?1:0.35;im.data[p]=f0.data[p]*k;im.data[p+1]=f0.data[p+1]*k;im.data[p+2]=f0.data[p+2]*k;im.data[p+3]=255;}tx.putImageData(im,0,0);}
+  else tx.putImageData(f0,0,0);
+  x.imageSmoothingEnabled=true;x.drawImage(t,0,0,c.width,c.height);
+  const k=c.width/pk.w;x.lineWidth=Math.max(2,dpr*1.6);
+  const kept=finalHolds();
+  x.strokeStyle='#FF9F1C';for(const b of pk.colorBlobs){if(!kept.includes(b))continue;x.strokeRect(b.x0*k,b.y0*k,(b.x1-b.x0)*k,(b.y1-b.y0)*k);}
+  x.strokeStyle='#4DD4FF';for(const b of pk.manual)x.strokeRect(b.x0*k,b.y0*k,(b.x1-b.x0)*k,(b.y1-b.y0)*k);
+}
+function setMode(m){pk.mode=m;['mColor','mAdd','mDel'].forEach(id=>$(id).classList.toggle('on',id==={color:'mColor',add:'mAdd',del:'mDel'}[m]));$('modeHelp').textContent=MODE_HELP[m];}
+$('mColor').addEventListener('click',()=>setMode('color'));$('mAdd').addEventListener('click',()=>setMode('add'));$('mDel').addEventListener('click',()=>setMode('del'));
+$('pickCanvas').addEventListener('pointerdown',e=>{
+  if(!pk.frames.length)return;const c=$('pickCanvas'),rc=c.getBoundingClientRect();
+  const px=clamp(Math.round((e.clientX-rc.left)/rc.width*pk.w),0,pk.w-1),py=clamp(Math.round((e.clientY-rc.top)/rc.height*pk.h),0,pk.h-1);
+  const f0=pk.frames[0];
+  if(pk.mode==='color'){let r=0,g=0,b=0,cnt=0;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const X=px+dx,Y=py+dy;if(X<0||Y<0||X>=pk.w||Y>=pk.h)continue;const p=(Y*pk.w+X)*4;r+=f0.data[p];g+=f0.data[p+1];b+=f0.data[p+2];cnt++;}
+    r/=cnt;g/=cnt;b/=cnt;if(pk.samples.length>=5)pk.samples.shift();pk.samples.push({hsv:rgb2hsv(r,g,b),rgb:[r,g,b].map(Math.round)});}
+  else if(pk.mode==='add'){pk.manual.push(regionGrow(f0.data,pk.w,pk.h,px,py,pk.tol));}
+  else{const hit=b=>px>=b.x0-3&&px<=b.x1+3&&py>=b.y0-3&&py<=b.y1+3;const mi=pk.manual.findIndex(hit);
+    if(mi>=0)pk.manual.splice(mi,1);else if(pk.colorBlobs.some(hit))pk.removed.push({x:px,y:py});}
+  recomputePick();
+});
+$('swatches').addEventListener('click',e=>{const b=e.target.closest('.sw');if(!b)return;pk.samples.splice(+b.dataset.i,1);recomputePick();});
+$('tol').addEventListener('input',e=>{$('tolVal').textContent=e.target.value;pk.tol=+e.target.value;recomputePick();});
+function updateDensityNote(){const v=$('video'),d=Math.min(v.duration||0,120),fps=+$('density').value;$('densityNote').textContent=d?`この動画（${fmtDur(d)}）は ${Math.floor(d*fps)} コマになります。解析時間はiPhoneで目安 ${fmtDur(d*fps*0.12)}〜${fmtDur(d*fps*0.25)}。`:'';}
+$('density').addEventListener('change',updateDensityNote);
+
+/* --- 解析の実行 --- */
+async function analyze(useHolds){
+  const v=$('video'),file=pendingFile;if(!file)return;cancelled=false;
+  const k=v.videoWidth/pk.w,holds=useHolds?finalHolds().map(b=>({x0:b.x0*k,y0:b.y0*k,x1:b.x1*k,y1:b.y1*k})):null;
+  $('pick').hidden=true;$('err').hidden=true;
+  setProgress('モデルを読み込み中',0,'','初回はモデル（約11MB）の読み込みに少し時間がかかります');$('progress').hidden=false;$('file').disabled=true;
+  let lock=null;try{lock=await navigator.wakeLock?.request('screen');}catch(e){}
+  const prevCurrent=current;
+  try{
+    current={entry:sampleEntry(),withVideo:false};
+    $('player').hidden=false;$('playerPh').hidden=true;layoutStage();
+    await getModels();
+    const dur=Math.min(v.duration||0,120);
+    if(!(dur>1))throw new Error('動画が短すぎます。1秒以上の動画を選んでください。');
+    const fps=+$('density').value,n=Math.floor(dur*fps),vw=v.videoWidth,vh=v.videoHeight;
+    const frames=[];let roi=null;const t0=performance.now();
+    live={fps,kps:[],com:[],ends:[],contact:[],holds:holds||[],track:null,wb:[]};
+    for(let i=0;i<n;i++){
+      if(cancelled)throw new Error('cancel');
+      await seek(v,i/fps);
+      if(!roi)roi=await findPerson(v);
+      let res=null;
+      if(roi){res=await landmarks(v,roi);
+        if(res.flag<0.5){roi=await findPerson(v);res=roi?await landmarks(v,roi):null;}}
+      if(res&&res.flag>=0.5){const kp=res.kp,ok=kp.filter(q=>q[2]>0.5).map(q=>({x:q[0],y:q[1]}));
+        const hip=mid({x:kp[23][0],y:kp[23][1]},{x:kp[24][0],y:kp[24][1]}),sh=mid({x:kp[11][0],y:kp[11][1]},{x:kp[12][0],y:kp[12][1]});
+        roi=ok.length>=8?roiFrom(ok,hip,sh,vw,vh):null;
+        frames.push({t:i/fps,kp,flag:res.flag});live.kps[i]=kp.map(q=>q[2]>=CFG.visMin?[q[0],q[1]]:null);}
+      else{roi=null;frames.push({t:i/fps,kp:null,flag:0});live.kps[i]=null;}
+      if(i%2===0)renderView(i/fps,true);
+      const el=(performance.now()-t0)/1000,rem=el/(i+1)*(n-i-1);
+      setProgress('骨格を推定中',(i+1)/n,`${i+1} / ${n} コマ`,i>4?`残り 約${fmtDur(rem)}`:'残り時間を計算中');
+    }
+    setProgress('採点中',1,'','');
+    const r=scoreSeries(frames,fps,holds);
+    if(!r)throw new Error('人物をうまく検出できませんでした。全身が映る位置から撮った動画で試してください。');
+    const entry={id:String(Date.now()),v:2,date:new Date().toISOString(),name:file.name,grade:$('grade').value,wall:$('wall').value,memo:$('memo').value.trim(),
+      score:r.score,axesAvg:r.axesAvg,raw:r.raw,fps,duration:r.duration,timeline:r.smooth.map(x=>x==null?null:Math.round(x*10)/10),
+      crux:r.crux&&{t0:r.crux.t0,t1:r.crux.t1,tMin:r.crux.tMin,drop:r.crux.drop,reasons:r.crux.reasons},thumb:await thumbAt(v,r.crux?r.crux.tMin:dur/2)};
+    hist=hist.filter(h=>!h.sample);hist.unshift(entry);
+    if(!saveHist(hist))showErr('履歴を保存できませんでした（ブラウザの保存領域がいっぱいか、無効になっています）。結果はこの画面では見られます。');
+    live={fps,kps:r.kps,com:r.com,ends:r.ends,contact:r.contact,holds:holds||[],track:buildTrack(r.kps,fps),wb:[]};
+    current={entry,withVideo:true};
+    await seek(v,0);
+    render();
+    $('resultPanel').scrollIntoView({behavior:'auto',block:'start'});
+  }catch(e){
+    if(e.message!=='cancel')showErr(e.message||'解析中にエラーが起きました。');
+    current=prevCurrent&&!prevCurrent.withVideo?prevCurrent:null;live=null;render();
+  }finally{
+    $('progress').hidden=true;$('file').disabled=false;$('file').value='';$('tips').hidden=false;pendingFile=null;pk.frames=[];
+    try{lock&&lock.release();}catch(e){}
+  }
+}
+function setProgress(label,p,count,hint){$('pLabel').textContent=label;$('pBar').style.width=(p*100).toFixed(1)+'%';$('pCount').textContent=count;if(hint!=null)$('pHint').textContent=hint;}
+function showErr(m){$('err').textContent=m;$('err').hidden=false;}
+async function thumbAt(v,t){try{await seek(v,t);const c=document.createElement('canvas');const s=104;c.width=c.height=s;const x=c.getContext('2d');const m=Math.min(v.videoWidth,v.videoHeight);x.drawImage(v,(v.videoWidth-m)/2,(v.videoHeight-m)/2,m,m,0,0,s,s);return c.toDataURL('image/jpeg',0.6);}catch(e){return null;}}
+// 人物に寄るための枠（前後0.5秒でならす）
+function buildTrack(kps,fps){
+  const raw=kps.map(k=>{if(!k)return null;const ps=k.slice(11).filter(Boolean);if(ps.length<6)return null;const xs=ps.map(p=>p[0]),ys=ps.map(p=>p[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);return[(x0+x1)/2,(y0+y1)/2,x1-x0,y1-y0];});
+  const r=Math.max(1,Math.round(fps*0.5));
+  return raw.map((_,i)=>{let s=[0,0,0,0],c=0;for(let j=i-r;j<=i+r;j++){const v=raw[j];if(v){for(let q=0;q<4;q++)s[q]+=v[q];c++;}}return c?s.map(x=>x/c):null;});
+}
+
+/* --- プレイヤー --- */
+const BONES=[[11,12],[11,13],[13,15],[15,19],[12,14],[14,16],[16,20],[11,23],[12,24],[23,24],[23,25],[25,27],[27,29],[29,31],[27,31],[24,26],[26,28],[28,30],[30,32],[28,32]];
+const WB_BODY=[[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16],[15,17],[15,18],[15,19],[16,20],[16,21],[16,22]];
+const HAND=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20]];
+const vid=$('video'),view=$('view');
+function layoutStage(){
+  const st=$('stage');if(!vid.videoWidth||$('player').hidden)return;
+  if(!$('player').classList.contains('full')){const w=st.clientWidth,maxH=Math.min(window.innerHeight*0.8,900);st.style.height=Math.round(Math.min(w*vid.videoHeight/vid.videoWidth,maxH))+'px';}
+  const dpr=window.devicePixelRatio||1;view.width=Math.round(st.clientWidth*dpr);view.height=Math.round(st.clientHeight*dpr);
+  renderView(vid.currentTime,!canPlay());
+}
+function lerpPts(a,b,f){if(!a)return b&&f>0.5?b:a;if(!b)return a;return a.map((p,k)=>p&&b[k]?[p[0]+(b[k][0]-p[0])*f,p[1]+(b[k][1]-p[1])*f]:p);}
+function frameAt(t){if(!live||!live.kps.length)return{i:0,f:0};const x=Math.max(0,t*live.fps);const i=Math.min(live.kps.length-1,Math.floor(x));return{i,f:Math.min(1,x-i)};}
+function viewport(t){
+  const cw=view.width,ch=view.height,vw=vid.videoWidth,vh=vid.videoHeight;
+  const sFit=Math.min(cw/vw,ch/vh);let s=sFit,cx=vw/2,cy=vh/2;
+  if(show.follow&&live&&live.track&&canPlay()){const{i,f}=frameAt(t);const a=live.track[i],b=live.track[Math.min(live.track.length-1,i+1)]||a;
+    if(a){const q=b?a.map((v,k)=>v+(b[k]-v)*f):a;const needW=q[2]*1.5,needH=q[3]*1.35;s=Math.max(sFit,Math.min(cw/needW,ch/needH,sFit*4));cx=q[0];cy=q[1];
+      const hw=cw/2/s,hh=ch/2/s;if(vw>2*hw)cx=clamp(cx,hw,vw-hw);else cx=vw/2;if(vh>2*hh)cy=clamp(cy,hh,vh-hh);else cy=vh/2;}}
+  return{s,ox:cw/2-cx*s,oy:ch/2-cy*s};
+}
+function renderView(t,analyzing){
+  const x=view.getContext('2d'),cw=view.width,ch=view.height;
+  x.setTransform(1,0,0,1,0,0);x.fillStyle='#05070B';x.fillRect(0,0,cw,ch);
+  if(!vid.videoWidth)return;
+  const vp=viewport(t);x.setTransform(vp.s,0,0,vp.s,vp.ox,vp.oy);
+  try{x.drawImage(vid,0,0);}catch(e){}
+  const px=1/vp.s*(window.devicePixelRatio||1),lw=2.4*px;
+  if(live&&live.kps.length){
+    const{i,f}=frameAt(t),j=Math.min(live.kps.length-1,i+1);
+    const ct=!analyzing&&live.contact&&live.contact.length?live.contact[f<0.5?i:j]:null;
+    const ends=!analyzing&&live.ends&&live.ends.length?lerpPts(live.ends[i],live.ends[j],f):null;
+    if(show.hold&&live.holds.length){x.lineWidth=lw*0.8;
+      for(const h of live.holds){let held=false;if(ct&&ends){for(let q=0;q<4;q++){const p=ends[q];if(ct[q]&&p&&p[0]>=h.x0-20&&p[0]<=h.x1+20&&p[1]>=h.y0-20&&p[1]<=h.y1+20)held=true;}}
+        x.strokeStyle=held?'#2EE6A6':'rgba(255,159,28,.9)';x.strokeRect(h.x0,h.y0,h.x1-h.x0,h.y1-h.y0);}}
+    const bad=current&&current.entry.crux&&!analyzing&&t>=current.entry.crux.t0&&t<=current.entry.crux.t1;
+    const col=bad?'#FF5F74':'#7DF0FF';x.lineCap='round';x.lineJoin='round';x.lineWidth=lw;
+    if(show.trail&&live.com.length&&!analyzing){x.beginPath();let st=false;for(let q=Math.max(0,i-Math.round(live.fps*2));q<=i;q++){const p=live.com[q];if(!p)continue;st?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);st=true;}
+      const pa=live.com[i],pb=live.com[j];let cp=pa;if(pa&&pb)cp=[pa[0]+(pb[0]-pa[0])*f,pa[1]+(pb[1]-pa[1])*f];if(cp&&st)x.lineTo(cp[0],cp[1]);
+      x.strokeStyle='rgba(255,214,10,.9)';x.stroke();if(cp){x.fillStyle='#FFD60A';x.beginPath();x.arc(cp[0],cp[1],lw*2.2,0,7);x.fill();}}
+    const wbFrame=show.wb&&live.wb?(live.wb[Math.round(t*live.fps)]||null):null;
+    if(wbFrame)drawWB(x,wbFrame,lw,col);
+    else if(show.skel){const kp=analyzing?live.kps[i]:lerpPts(live.kps[i],live.kps[j],f);
+      if(kp){x.strokeStyle=col;for(const[a,b]of BONES){if(kp[a]&&kp[b]){x.beginPath();x.moveTo(kp[a][0],kp[a][1]);x.lineTo(kp[b][0],kp[b][1]);x.stroke();}}
+        x.fillStyle='#fff';for(let q=11;q<33;q++)if(kp[q]){x.beginPath();x.arc(kp[q][0],kp[q][1],lw*0.9,0,7);x.fill();}}}
+    if(show.hold&&ct&&ends){for(let q=0;q<4;q++){const p=ends[q];if(!p)continue;x.beginPath();x.arc(p[0],p[1],lw*3,0,7);
+        if(ct[q]){x.fillStyle='rgba(46,230,166,.9)';x.fill();}else{x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=lw*0.8;x.stroke();x.lineWidth=lw;}}}
+    if(!analyzing&&canPlay())updateHud(t,ct);
+  }
+  x.setTransform(1,0,0,1,0,0);
+}
+function drawWB(x,p,lw,col){
+  const ok=k=>p[k*3+2]>=0.3,P=k=>[p[k*3],p[k*3+1]];
+  const line=(a,b)=>{if(ok(a)&&ok(b)){const A=P(a),B=P(b);x.beginPath();x.moveTo(A[0],A[1]);x.lineTo(B[0],B[1]);x.stroke();}};
+  x.strokeStyle=col;x.lineWidth=lw;for(const[a,b]of WB_BODY)line(a,b);
+  x.strokeStyle='#FF8FD1';x.lineWidth=lw*0.6;for(const base of[91,112])for(const[a,b]of HAND)line(base+a,base+b);
+  x.fillStyle='#FF8FD1';for(let k=91;k<133;k++)if(ok(k)){const q=P(k);x.beginPath();x.arc(q[0],q[1],lw*0.55,0,7);x.fill();}
+  x.fillStyle='rgba(255,255,255,.85)';for(let k=23;k<91;k++)if(ok(k)){const q=P(k);x.beginPath();x.arc(q[0],q[1],lw*0.3,0,7);x.fill();}
+  x.fillStyle='#fff';for(let k=5;k<23;k++)if(ok(k)){const q=P(k);x.beginPath();x.arc(q[0],q[1],lw*0.8,0,7);x.fill();}
+}
+function updateHud(t,ct){
+  const d=current.entry.duration,fps=live.fps,fi=Math.round(t*fps);
+  $('tcNow').textContent=fmtT(t);$('tcDur').textContent=fmtT(d);$('tcFrame').textContent=`コマ ${Math.min(fi+1,live.kps.length)} / ${live.kps.length}`;
+  const sc=current.entry.timeline[Math.min(current.entry.timeline.length-1,fi)];
+  $('tcScore').textContent=sc!=null?`スコア ${sc.toFixed(1)}${ct?`・保持 ${ct.filter(Boolean).length}本`:''}`:'';
+  if(!scrubbing)$('scrub').value=Math.round(t/d*1000);
+  drawPlayhead(t);
+}
+let raf=0;
+function playLoop(){
+  if('requestVideoFrameCallback' in vid){const cb=(now,meta)=>{renderView(meta.mediaTime);if(!vid.paused)vid.requestVideoFrameCallback(cb);};vid.requestVideoFrameCallback(cb);}
+  else{const f=()=>{renderView(vid.currentTime);if(!vid.paused)raf=requestAnimationFrame(f);};raf=requestAnimationFrame(f);}
+}
+function canPlay(){return!!(current&&current.withVideo&&live&&live.kps.length);}
+vid.addEventListener('play',()=>{$('bPlay').textContent='停止';playLoop();});
+vid.addEventListener('pause',()=>{$('bPlay').textContent='再生';if(canPlay())renderView(vid.currentTime);});
+vid.addEventListener('seeked',()=>{if(canPlay())renderView(vid.currentTime);});
+vid.addEventListener('ended',()=>{$('bPlay').textContent='再生';});
+function stepFrames(n){if(!canPlay())return;vid.pause();const fps=live.fps,maxT=current.entry.duration-1/fps;const fi=Math.round(vid.currentTime*fps)+n;vid.currentTime=clamp(fi/fps,0,maxT);}
+function togglePlay(){if(!canPlay())return;if(vid.paused){if(vid.currentTime>=current.entry.duration-0.05)vid.currentTime=0;vid.play().catch(()=>{});}else vid.pause();}
+$('bPlay').addEventListener('click',togglePlay);
+function repeatBtn(btn,fn){let tmo=0,itv=0;const stop=()=>{clearTimeout(tmo);clearInterval(itv);};
+  btn.addEventListener('pointerdown',e=>{e.preventDefault();fn();tmo=setTimeout(()=>{itv=setInterval(fn,90);},380);});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev,stop));
+  btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fn();}});}
+repeatBtn($('bBack'),()=>stepFrames(-1));repeatBtn($('bFwd'),()=>stepFrames(1));
+document.querySelectorAll('[data-rate]').forEach(b=>b.addEventListener('click',()=>{vid.playbackRate=+b.dataset.rate;document.querySelectorAll('[data-rate]').forEach(x=>x.classList.toggle('on',x===b));}));
+let scrubbing=false;
+$('scrub').addEventListener('input',e=>{if(!canPlay())return;scrubbing=true;vid.pause();const t=e.target.value/1000*current.entry.duration;vid.currentTime=Math.round(t*live.fps)/live.fps;});
+$('scrub').addEventListener('change',()=>{scrubbing=false;});
+// 画面を左右にドラッグでコマ送り、タップで再生/停止
+let drag=null;
+$('stage').addEventListener('pointerdown',e=>{if(!canPlay())return;drag={x:e.clientX,fi:Math.round(vid.currentTime*live.fps),moved:false};try{$('stage').setPointerCapture(e.pointerId);}catch(err){}});
+$('stage').addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x;if(Math.abs(dx)>6&&!drag.moved){drag.moved=true;vid.pause();$('dragHint').hidden=true;}
+  if(drag.moved){const fi=drag.fi+Math.round(dx/7);vid.currentTime=clamp(fi/live.fps,0,current.entry.duration-1/live.fps);}});
+$('stage').addEventListener('pointerup',()=>{if(drag&&!drag.moved)togglePlay();drag=null;});
+$('stage').addEventListener('pointercancel',()=>{drag=null;});
+document.addEventListener('keydown',e=>{if(!canPlay()||e.target.closest('input,select,textarea'))return;if(e.key==='ArrowLeft'){e.preventDefault();stepFrames(-1);}else if(e.key==='ArrowRight'){e.preventDefault();stepFrames(1);}else if(e.key===' '&&e.target===document.body){e.preventDefault();togglePlay();}else if(e.key==='Escape'&&$('player').classList.contains('full'))setFull(false);});
+function setFull(on){$('player').classList.toggle('full',on);document.body.classList.toggle('lock',on);$('bFull').textContent=on?'閉じる':'全画面';if(!on)$('stage').style.height='';requestAnimationFrame(layoutStage);}
+$('bFull').addEventListener('click',()=>setFull(!$('player').classList.contains('full')));
+function tog(id,key){const b=$(id);b.addEventListener('click',()=>{show[key]=!show[key];b.classList.toggle('on',show[key]);b.setAttribute('aria-pressed',show[key]);if(canPlay())renderView(vid.currentTime);});}
+tog('tFollow','follow');tog('tSkel','skel');tog('tTrail','trail');tog('tHold','hold');tog('tWb','wb');
+$('jump').addEventListener('click',()=>{if(canPlay()&&current.entry.crux){vid.pause();vid.currentTime=Math.max(0,current.entry.crux.t0-0.5);}});
+window.addEventListener('resize',()=>{layoutStage();drawPick();});
+
+/* --- 133点（DWPose / RTMW の ONNX を読み込んで使う） --- */
+const ORT_VER='1.22.0',WB_URL='https://huggingface.co/yzd-v/DWPose/resolve/main/dw-ll_ucoco_384.onnx';
+const wb={sess:null,W:288,H:384,inName:null,xName:null,yName:null,name:'',range:'crux',busy:false,cancel:false};
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('boulder-lab',1);r.onupgradeneeded=()=>r.result.createObjectStore('models');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction('models').objectStore('models').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function idbPut(k,v){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction('models','readwrite');t.objectStore('models').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error);});}
+async function loadOrt(){
+  if(window.ort)return;
+  const src=STANDALONE?`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VER}/dist/ort.min.js`:`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VER}/dist/ort.wasm.min.js`;
+  await new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('推論ライブラリを読み込めませんでした。通信状態を確認してください。'));document.head.appendChild(s);});
+  ort.env.wasm.numThreads=1;
+  ort.env.wasm.wasmPaths=STANDALONE?`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VER}/dist/`:new URL('ort/',document.baseURI).href;
+}
+function wbStatus(t){$('wbStatus').textContent=t;}
+async function wbOpen(buf,name){
+  wbStatus('モデルを準備中…（数十秒かかることがあります）');await loadOrt();
+  const eps=STANDALONE&&navigator.gpu?['webgpu','wasm']:['wasm'];
+  const sess=await ort.InferenceSession.create(new Uint8Array(buf),{executionProviders:eps,graphOptimizationLevel:'all'});
+  wb.inName=sess.inputNames[0];const outs=sess.outputNames;
+  wb.xName=outs.find(o=>/x$/i.test(o))||outs[0];wb.yName=outs.find(o=>/y$/i.test(o)&&o!==wb.xName)||outs.find(o=>o!==wb.xName);
+  const meta=sess.inputMetadata&&sess.inputMetadata[0];let sizes=[[384,288],[256,192]];
+  if(meta&&meta.shape&&typeof meta.shape[2]==='number')sizes=[[meta.shape[2],meta.shape[3]]];
+  let okSize=null;
+  for(const[H,W]of sizes){try{const out=await sess.run({[wb.inName]:new ort.Tensor('float32',new Float32Array(3*H*W),[1,3,H,W])});const d=out[wb.xName].dims;if(d.length===3&&d[1]>=133){okSize=[H,W];break;}}catch(e){}}
+  if(!okSize)throw new Error('このモデルは133点（COCO-WholeBody）の形式ではないようです。dw-ll_ucoco_384.onnx を選んでください。');
+  [wb.H,wb.W]=okSize;wb.sess=sess;wb.name=name;
+  wbStatus(`読み込み済み：${name}（入力 ${wb.W}×${wb.H}）`);$('wbLoadRow').hidden=true;$('wbGuide').hidden=true;$('wbRun').hidden=false;updateWbRange();
+}
+async function wbLoad(){
+  try{
+    $('wbLoad').disabled=true;wbStatus('保存済みのモデルを確認中…');
+    let rec=null;try{rec=await idbGet('wb');}catch(e){}
+    if(rec&&rec.blob){await wbOpen(await rec.blob.arrayBuffer(),rec.name);return;}
+    wbStatus('モデルをダウンロード中…');
+    let buf=null;
+    try{const res=await fetch(WB_URL);if(!res.ok)throw 0;const total=+res.headers.get('content-length')||0;const rd=res.body.getReader();const parts=[];let got=0;
+      for(;;){const{done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;wbStatus(`モデルをダウンロード中… ${Math.round(got/1e6)}${total?` / ${Math.round(total/1e6)}`:''} MB`);}
+      buf=await new Blob(parts).arrayBuffer();}catch(e){buf=null;}
+    if(!buf){wbStatus('このページからはダウンロードできませんでした。下の手順でモデルファイルを選んでください。');$('wbGuide').hidden=false;return;}
+    try{await idbPut('wb',{name:'dw-ll_ucoco_384.onnx',blob:new Blob([buf])});}catch(e){}
+    await wbOpen(buf,'dw-ll_ucoco_384.onnx');
+  }catch(e){wbStatus(e.message||'モデルを読み込めませんでした。');}
+  finally{$('wbLoad').disabled=false;}
+}
+$('wbLoad').addEventListener('click',wbLoad);
+$('wbFile').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;
+  try{wbStatus('ファイルを読み込み中…');const buf=await f.arrayBuffer();await wbOpen(buf,f.name);try{await idbPut('wb',{name:f.name,blob:f});}catch(err){}}
+  catch(err){wbStatus(err.message||'モデルを読み込めませんでした。');}finally{e.target.value='';}});
+function wbSpan(){
+  if(!canPlay())return null;const d=current.entry.duration;let a,b;
+  if(wb.range==='crux'&&current.entry.crux){a=current.entry.crux.t0-0.5;b=current.entry.crux.t1+0.5;}
+  else{a=vid.currentTime-2;b=vid.currentTime+2;}
+  a=Math.max(0,a);b=Math.min(d,b);if(b-a>8){const c=(a+b)/2;a=c-4;b=c+4;}return[a,b];
+}
+function updateWbRange(){const s=wbSpan();if(!s)return;const n=Math.floor((s[1]-s[0])*live.fps);$('wbRangeTxt').textContent=`${fmtT(s[0])}〜${fmtT(s[1])}（${n}コマ）`;$('wbCrux').disabled=!current.entry.crux;if(!current.entry.crux&&wb.range==='crux')setWbRange('here');}
+function setWbRange(r){wb.range=r;$('wbCrux').classList.toggle('on',r==='crux');$('wbHere').classList.toggle('on',r==='here');updateWbRange();}
+$('wbCrux').addEventListener('click',()=>setWbRange('crux'));$('wbHere').addEventListener('click',()=>setWbRange('here'));
+vid.addEventListener('seeked',()=>{if(wb.sess&&wb.range==='here'&&!wb.busy)updateWbRange();});
+const wc=document.createElement('canvas');const wctx=wc.getContext('2d',{willReadFrequently:true});
+async function wbInfer(i){
+  const kp=live.kps[i];if(!kp)return null;const ps=kp.filter(Boolean);if(ps.length<8)return null;
+  const xs=ps.map(p=>p[0]),ys=ps.map(p=>p[1]);const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+  let bw=(Math.max(...xs)-Math.min(...xs))*1.25,bh=(Math.max(...ys)-Math.min(...ys))*1.25;const ar=wb.W/wb.H;
+  if(bw>bh*ar)bh=bw/ar;else bw=bh*ar;
+  const W=wb.W,H=wb.H;wc.width=W;wc.height=H;wctx.setTransform(1,0,0,1,0,0);wctx.fillStyle='#000';wctx.fillRect(0,0,W,H);
+  const k=W/bw;wctx.setTransform(k,0,0,k,-(cx-bw/2)*k,-(cy-bh/2)*k);wctx.drawImage(vid,0,0);wctx.setTransform(1,0,0,1,0,0);
+  const d=wctx.getImageData(0,0,W,H).data,N=W*H,f=new Float32Array(3*N);
+  for(let q=0,p=0;q<N;q++,p+=4){f[q]=(d[p]-123.675)/58.395;f[N+q]=(d[p+1]-116.28)/57.12;f[2*N+q]=(d[p+2]-103.53)/57.375;}
+  const out=await wb.sess.run({[wb.inName]:new ort.Tensor('float32',f,[1,3,H,W])});
+  const sx=out[wb.xName],sy=out[wb.yName],K=Math.min(133,sx.dims[1]),Lx=sx.dims[2],Ly=sy.dims[2],X=sx.data,Y=sy.data,sp=Lx/W;
+  const res=new Float32Array(133*3);
+  for(let j=0;j<K;j++){let bx=0,mx=-1e9,by=0,my=-1e9;for(let q=0;q<Lx;q++){const v=X[j*Lx+q];if(v>mx){mx=v;bx=q;}}for(let q=0;q<Ly;q++){const v=Y[j*Ly+q];if(v>my){my=v;by=q;}}
+    res[j*3]=cx-bw/2+bx/sp/W*bw;res[j*3+1]=cy-bh/2+by/sp/H*bh;res[j*3+2]=Math.min(mx,my);}
+  return res;
+}
+$('wbStart').addEventListener('click',async()=>{
+  const s=wbSpan();if(!s||!wb.sess||wb.busy)return;wb.busy=true;wb.cancel=false;vid.pause();
+  const fps=live.fps,i0=Math.round(s[0]*fps),i1=Math.min(live.kps.length-1,Math.round(s[1]*fps)),n=i1-i0+1;
+  $('wbProg').hidden=false;$('wbStart').disabled=true;const t0=performance.now();show.wb=true;
+  try{for(let i=i0;i<=i1;i++){if(wb.cancel)break;await seek(vid,i/fps);live.wb[i]=await wbInfer(i);
+      const el=(performance.now()-t0)/1000,rem=el/(i-i0+1)*(i1-i);
+      $('wbPBar').style.width=((i-i0+1)/n*100).toFixed(1)+'%';$('wbPCount').textContent=`${i-i0+1} / ${n} コマ`;$('wbPHint').textContent=`1コマ 約${(el/(i-i0+1)).toFixed(1)}秒・残り 約${fmtDur(rem)}`;
+      renderView(i/fps);}
+    $('tWb').hidden=false;$('tWb').classList.add('on');$('tWb').setAttribute('aria-pressed','true');
+    wbStatus(`${fmtT(s[0])}〜${fmtT(s[1])} を133点で解析しました。コマ送りで手指の形を確認できます（ピンクが手指）。`);
+    await seek(vid,i0/fps);renderView(vid.currentTime);
+  }catch(e){wbStatus('133点の解析中にエラーが起きました：'+(e.message||e));}
+  finally{wb.busy=false;$('wbProg').hidden=true;$('wbStart').disabled=false;}
+});
+$('wbCancel').addEventListener('click',()=>{wb.cancel=true;});
+(async()=>{try{const rec=await idbGet('wb');if(rec&&rec.name){wbStatus(`保存済みのモデルがあります：${rec.name}。「モデルを読み込む」で使えます。`);$('wbGuide').hidden=true;}}catch(e){}})();
+
+/* --- グラフ --- */
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e;}
+const TL={W:640,H:200,l:34,r:10,t:12,b:26};
+function renderTimeline(entry){
+  const svg=$('timeline');svg.innerHTML='';const{W,H,l,r,t,b}=TL;const pw=W-l-r,ph=H-t-b;
+  const dur=entry.duration,tl=entry.timeline;
+  const X=s=>l+s/dur*pw,Y=v=>t+(1-v/100)*ph;
+  for(const v of[0,25,50,75,100]){el('line',{x1:l,x2:W-r,y1:Y(v),y2:Y(v),stroke:'var(--line)','stroke-width':1},svg);el('text',{x:l-6,y:Y(v)+4,'text-anchor':'end'},svg).textContent=v;}
+  const step=dur>60?15:dur>20?5:2;for(let s=0;s<=dur+0.01;s+=step){el('text',{x:X(s),y:H-6,'text-anchor':'middle'},svg).textContent=fmtT(s).replace(/\.\d$/,'');}
+  if(entry.crux){el('rect',{x:X(entry.crux.t0),y:t,width:Math.max(2,X(entry.crux.t1)-X(entry.crux.t0)),height:ph,fill:'var(--bad-soft)'},svg);
+    el('text',{x:X(entry.crux.tMin),y:t+12,'text-anchor':'middle',style:'fill:var(--bad);font-weight:500'},svg).textContent='核心';}
+  let segs=[],cur=[];tl.forEach((v,i)=>{if(v==null){if(cur.length)segs.push(cur);cur=[];}else cur.push([X(i/entry.fps),Y(v)]);});if(cur.length)segs.push(cur);
+  for(const sg of segs){if(sg.length<2)continue;
+    el('path',{d:`M${sg[0][0]},${Y(0)} `+sg.map(p=>`L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')+` L${sg[sg.length-1][0]},${Y(0)} Z`,fill:'var(--accent-soft)'},svg);
+    el('path',{d:'M'+sg.map(p=>`${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L'),fill:'none',stroke:'var(--accent)','stroke-width':2,'stroke-linejoin':'round'},svg);}
+  if(entry.crux){const i=Math.round(entry.crux.tMin*entry.fps),v=tl[i];if(v!=null)el('circle',{cx:X(entry.crux.tMin),cy:Y(v),r:4.5,fill:'var(--bad)',stroke:'var(--surface)','stroke-width':2},svg);}
+  el('line',{id:'playhead',x1:l,x2:l,y1:t,y2:t+ph,stroke:'var(--ink)','stroke-width':1.5,opacity:current&&current.withVideo?0.8:0},svg);
+}
+function drawPlayhead(time){const p=document.getElementById('playhead');if(!p||!current)return;const{W,l,r}=TL;const x=l+Math.min(1,time/current.entry.duration)*(W-l-r);p.setAttribute('x1',x);p.setAttribute('x2',x);}
+function renderRadar(entry,prev){
+  const svg=$('radar');svg.innerHTML='';const cx=150,cy=148,R=100;
+  const pt=(i,v)=>{const a=-Math.PI/2+i*2*Math.PI/5;return[cx+Math.cos(a)*R*v/20,cy+Math.sin(a)*R*v/20];};
+  for(const v of[5,10,15,20])el('polygon',{points:AXES.map((_,i)=>pt(i,v).join(',')).join(' '),fill:'none',stroke:'var(--line)','stroke-width':1},svg);
+  AXES.forEach((a,i)=>{const[x,y]=pt(i,20);el('line',{x1:cx,y1:cy,x2:x,y2:y,stroke:'var(--line)'},svg);const[lx,ly]=pt(i,25);
+    el('text',{x:lx,y:ly+4,'text-anchor':Math.abs(lx-cx)<8?'middle':lx>cx?'start':'end',style:'fill:var(--ink);font-family:var(--f-body);font-size:12px;font-weight:700'},svg).textContent=a.n;});
+  if(prev)el('polygon',{points:AXES.map((a,i)=>pt(i,prev.axesAvg[a.k]).join(',')).join(' '),fill:'none',stroke:'var(--muted)','stroke-width':1.5,'stroke-dasharray':'4 3'},svg);
+  el('polygon',{points:AXES.map((a,i)=>pt(i,entry.axesAvg[a.k]).join(',')).join(' '),fill:'var(--accent-soft)',stroke:'var(--accent)','stroke-width':2,'stroke-linejoin':'round'},svg);
+  AXES.forEach((a,i)=>{const[x,y]=pt(i,entry.axesAvg[a.k]);el('circle',{cx:x,cy:y,r:3.5,fill:'var(--accent)'},svg);});
+}
+
+/* --- 実測値の言葉 --- */
+function rawText(k,r){
+  if(!r)return'';
+  const j=r.judged&&r.judged[k]!=null?`（判定できたコマ ${Math.round(r.judged[k]*100)}%）`:'';
+  if(k==='support')return`平均 ${r.contacts.toFixed(1)} 本の手足が保持中`+(r.holds?'':'（ホールド指定なし：止まっている手足を保持中とみなす）');
+  if(k==='smooth')return`各区間の最大加速度 平均 約${(r.acc*CFG.bodyCm/100).toFixed(1)} m/s²`;
+  if(k==='variety'){const u=r.usage?LIMBS.map((l,i)=>`${l.n}${Math.round(r.usage[i]*100)}%`).join('・'):'';return(r.H!=null?`偏りの少なさ ${r.H.toFixed(2)}（1が均等）`:'動いた区間が少なく判定できず')+(u?`／動いた量 ${u}`:'')+j;}
+  if(k==='base')return`重心と${r.baseRef==='hand'?'握っているホールド':'手足'}の左右のズレ 平均 約${cm(r.e)}cm`;
+  if(k==='lead')return r.lag==null?'手の動きが少なく判定できず（この軸は12点として計算）':`腰が手より平均 ${Math.abs(r.lag).toFixed(2)}秒 ${r.lag>=0?'先':'後'}に動き出し`+j;
+  return'';
+}
+
+/* --- 画面全体の描画 --- */
+function prevOf(entry){const real=hist.filter(h=>!h.sample).sort((a,b)=>a.date<b.date?1:-1);const i=real.findIndex(h=>h.id===entry.id);return i>=0?(real[i+1]||null):(real[0]&&real[0].id!==entry.id?real[0]:null);}
+function render(){
+  if(!current){current={entry:hist[0]||sampleEntry(),withVideo:false};}
+  const e=current.entry,prev=e.sample?null:prevOf(e);
+  $('score').innerHTML=e.score.toFixed(1)+'<sub>/100</sub>';
+  $('sampleTag').hidden=!e.sample;$('legacyTag').hidden=!e.legacy;
+  $('titleLine').textContent=[e.sample?'表示例（あなたのデータではありません）':fmtD(e.date),e.grade,e.wall,e.memo].filter(Boolean).join('・');
+  const d=$('delta');if(prev){const df=e.score-prev.score;d.textContent=`前回比 ${df>=0?'+':''}${df.toFixed(1)}`;d.className='delta '+(df>=0?'up':'down');}else{d.textContent='';}
+  const cx=$('crux');
+  if(e.crux){cx.className='crux';$('cruxTc').textContent=`${fmtT(e.crux.t0)}〜${fmtT(e.crux.t1)}`;
+    const rs=e.crux.reasons.filter(x=>x.delta<-0.5).slice(0,2);
+    $('cruxText').textContent=`この区間でスコアが動画全体の中央値より ${e.crux.drop.toFixed(1)}点 落ちました。`+(rs.length?`主な原因は${rs.map(x=>`「${x.n}」${x.delta.toFixed(1)}`).join('、')}点（その軸の全体平均と比べた差）。`:'');}
+  else{cx.className='crux calm';$('cruxTc').textContent='なし';$('cruxText').textContent=`スコアが${CFG.cruxMin}点以上落ちた区間はありませんでした。安定した登りです。`;}
+  const wv=current.withVideo;
+  $('jump').hidden=!e.crux;$('player').hidden=!wv;$('playerPh').hidden=wv;$('wbBox').hidden=!wv;
+  if(!wv){$('playerPh').textContent=e.sample?'動画を解析すると、ここで骨格・重心の軌跡・保持中の手足を重ねて、コマ送りで再生できます':'この記録の動画は保存されていません。同じ動画を選び直すと、骨格付きで再生できます';if($('player').classList.contains('full'))setFull(false);}
+  else{$('tWb').hidden=!(live&&live.wb&&live.wb.some(Boolean));requestAnimationFrame(layoutStage);if(wb.sess)updateWbRange();}
+  renderTimeline(e);renderRadar(e,prev);$('legPrev').hidden=!prev;
+  const weakest=AXES.reduce((m,a)=>e.axesAvg[a.k]<e.axesAvg[m.k]?a:m,AXES[0]);
+  $('axisList').innerHTML=AXES.map(a=>{const v=e.axesAvg[a.k];const pd=prev?v-prev.axesAvg[a.k]:null;
+    return `<li class="${a.k===weakest.k?'weak':''}"><span class="n">${a.n}</span><span class="v"><b>${v.toFixed(1)}</b> / 20${pd!=null?` <span class="delta ${pd>=0?'up':'down'}">${pd>=0?'+':''}${pd.toFixed(1)}</span>`:''}</span><span class="track"><i style="width:${(v/20*100).toFixed(1)}%"></i></span>${e.raw?`<span class="raw">実測：${esc(rawText(a.k,e.raw))}</span>`:''}<span class="d">${a.d}${a.k===weakest.k?'（いちばんの伸びしろ）':''}</span></li>`;}).join('');
+  renderHist();
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function renderHist(){
+  const real=hist.filter(h=>!h.sample);$('histCount').textContent=`履歴 ${real.length}本`;
+  const list=[...real].sort(sortBy==='score'?(a,b)=>b.score-a.score:(a,b)=>a.date<b.date?1:-1);
+  const now=new Date(),wk=new Date(now);wk.setDate(now.getDate()-((now.getDay()+6)%7));wk.setHours(0,0,0,0);
+  const weekBest=real.filter(h=>new Date(h.date)>=wk).sort((a,b)=>b.score-a.score)[0];
+  $('clearHist').hidden=!real.length;
+  if(!list.length){$('hist').innerHTML='<li class="empty">まだ記録はありません。上の「登りの動画を選ぶ」から最初の1本を解析すると、ここに日付とスコアが並びます。</li>';return;}
+  $('hist').innerHTML=list.map(h=>`<li class="${current&&current.entry.id===h.id?'active':''}"><button type="button" class="row" data-id="${h.id}" aria-label="${esc(fmtD(h.date))}の記録を開く">
+    ${h.thumb?`<img src="${h.thumb}" alt="">`:'<span class="noimg"></span>'}
+    <span class="h-main"><span class="t">${esc([h.grade,h.wall,h.memo].filter(Boolean).join('・')||h.name)}</span><span class="s">${fmtD(h.date)}　${fmtT(h.duration).replace(/\.\d$/,'')}${h.crux?`　核心 ${fmtT(h.crux.tMin)}`:''}${h.legacy?'　旧方式':''}</span></span>
+    <span class="h-score">${h.score.toFixed(1)}${weekBest&&weekBest.id===h.id?'<small>今週のベスト</small>':''}</span></button></li>`).join('');
+}
+
+/* --- 採点基準ページ --- */
+function renderCriteria(){
+  const row=(a,b)=>`<tr><td>${a}</td><td class="pt">${b.toFixed(1)}点</td></tr>`;
+  const tbl=(h,rows)=>`<div class="tbl"><table><thead><tr><th>${h}</th><th class="pt">点数</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  const ms=v=>(v*CFG.bodyCm/100).toFixed(1);
+  const items=[
+   {t:'共通のルール',s:'',body:`
+    <p>長さはすべて<b>胴の長さ</b>（肩の中点〜腰の中点）を1として測ります。カメラとの距離で点数が変わらないようにするためです。表示のcmやm/s²は、胴の長さを約${CFG.bodyCm}cmとした目安です。</p>
+    <p><b>重心</b>は「腰の中点70％＋肩の中点30％」で近似します。</p>
+    <p><b>保持中</b>：手（手首・人差し指・小指の平均）や足（つま先）が、秒速${cm(CFG.contactSpeed)}cm未満の状態で${CFG.contactMin}秒以上止まっていたら「保持中」。ホールドを指定したときは、さらにホールドの枠から約${cm(CFG.holdPad)}cm以内にあることを条件にします。</p>
+    <p>動画を1秒あたり30コマ（または15コマ）に分けて骨格を推定します。速さ・加速度は約${Math.round(CFG.diffSec*1000)}ミリ秒の間隔で測るので、コマ数を変えても点数の基準は変わりません。各コマについて前後${CFG.win}秒の範囲から5軸をそれぞれ0〜20点で計算し、<b>総合点</b>＝5軸それぞれの「全コマの平均点」の合計です（100点満点）。</p>
+    <p>手が動いていない・動きがはっきりしないなど<b>判定できないコマ</b>は、その動画で判定できたコマの平均点で埋めます（一律の点で水増ししない）。</p>`},
+   {t:'4点キープ',s:'保持中の本数',body:`<p>前後${CFG.win}秒の間に、両手両足のうち平均何本が保持中だったかで決めます。本数の間は直線で補間します。</p>
+    ${tbl('保持中の本数（平均）',[4,3.5,3,2,1,0].map(c=>row(c+'本',F.support(c))))}`},
+   {t:'スムーズ',s:'最大加速度',body:`<p>前後${CFG.win}秒の間で、重心の加速度がいちばん大きかった値で決めます。約${ms(CFG.accFree)}m/s²までは満点で、それを超えると減点します。</p>
+    <p class="formula">点数 = 20 × e^(−(加速度 − ${CFG.accFree}) ÷ ${CFG.accScale})　※胴の長さ/秒²</p>
+    ${tbl('最大加速度',[1,2,3.5,6,11].map(a=>row(`約${ms(a)} m/s²`,F.smooth(a))))}<p class="note">目安：大きく飛びつくランジやダイノは約5m/s²以上になり、点が下がります。</p>`},
+   {t:'ムーブ',s:'手足の使い方の偏り',body:`<p>前後${CFG.win}秒の間に両手両足がそれぞれ動いた量の割合から、偏りの少なさ（0〜1）を出します。1本だけ動いたら0、4本が同じだけ動いたら1です。</p>
+    <p class="formula">点数 = 8 + 12 × 偏りの少なさ</p>
+    ${tbl('動いた手足',[1,2,3,4].map(c=>row(`${c}本が同じだけ`,F.variety(Math.log(c)/Math.log(4)))))}<p class="note">手足の移動量の合計が約${cm(CFG.restMove)}cm未満の区間はレスト中とみなし、判定しません。</p>`},
+   {t:'重心位置',s:'握ったホールドとのズレ',body:`<p>重心と、<b>保持中の手</b>の真ん中との左右のズレで決めます。保持中の手がなければ保持中の手足、それもなければ手足全部の真ん中を使います。約${cm(CFG.baseFree)}cmまでは満点です。</p>
+    <p class="formula">点数 = 20 × e^(−(ズレ − ${CFG.baseFree}) ÷ ${CFG.baseScale})　※胴の長さ単位</p>
+    ${tbl('左右のズレ',[0.15,0.25,0.35,0.55,0.95].map(e=>row(`約${cm(e)}cm`,F.base(e))))}`},
+   {t:'重心主導',s:'腰と手の動き出しの差',body:`<p>前後${CFG.leadWin}秒の間で、重心の速さと手の速さの波形を最大${CFG.leadLag}秒ずらして重ね、いちばん形が合うずれ（時間差）を求めます。腰が先に動くほど高得点です。</p>
+    <p class="formula">点数 = 12 + 8 × 時間差（秒）÷ ${CFG.leadLag}　（4〜20点）</p>
+    ${tbl('時間差',[0.5,0.25,0,-0.25,-0.5].map(s=>row(s>0?`腰が${s}秒先`:s<0?`手が${-s}秒先`:'同時',F.lead(s))))}
+    <p class="note">手がほとんど動いていない（秒速約${cm(CFG.handMove)}cm未満）か、波形の一致度が${CFG.leadCorr}未満の区間は判定しません。</p>`},
+   {t:'核心の判定',s:'',body:`<p>① コマごとの総合点を前後${CFG.win}秒で平均してならします。② 最初と最後の1秒を除き（6秒より長い動画のみ）、最も低い地点を探します。③ 動画全体の中央値より<b>${CFG.cruxMin}点以上</b>低ければ核心とし、落ち幅の半分より下にある連続区間を核心の区間にします。④ その区間で平均より0.5点以上落ちた軸のうち、大きい2つを原因として表示します。</p>`},
+   {t:'133点の詳細表示',s:'採点には未使用',body:`<p>DWPose（COCO-WholeBody形式）で、体17点・足先6点・顔68点・両手42点（指の関節ごと）を推定します。今は<b>見るための表示</b>で、採点には使っていません。手指の握り方（カチ持ち・オープンなど）の判定に使えるかは、実際の動画で精度を見てから検討します。</p>`}
+  ];
+  $('critBody').innerHTML=items.map((it,i)=>`<details${i===0?' open':''}><summary><span>${it.t}${it.s?`<small>${it.s}</small>`:''}</span></summary><div class="body">${it.body}</div></details>`).join('')+
+   `<p class="note" style="margin-top:8px">これらの数値は試作段階の仮の値です。実際の登り動画で手応えと合うように調整していく前提です。</p>`;
+}
+
+/* --- イベント --- */
+$('file').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{vid.pause();if($('player').classList.contains('full'))setFull(false);await openPick(f);}catch(err){showErr(err.message);$('file').value='';}});
+$('startWith').addEventListener('click',()=>analyze(true));
+$('startWithout').addEventListener('click',()=>analyze(false));
+$('pickReset').addEventListener('click',resetPick);
+$('pickCancel').addEventListener('click',()=>{pendingFile=null;pk.frames=[];$('pick').hidden=true;$('tips').hidden=false;$('file').value='';current=null;live=null;render();});
+$('cancel').addEventListener('click',()=>{cancelled=true;});
+$('hist').addEventListener('click',e=>{const b=e.target.closest('button.row');if(!b)return;const h=hist.find(x=>x.id===b.dataset.id);if(!h)return;
+  vid.pause();current={entry:h,withVideo:false};live=null;render();$('resultPanel').scrollIntoView({block:'start'});});
+$('sDate').addEventListener('click',()=>{sortBy='date';$('sDate').classList.add('on');$('sScore').classList.remove('on');renderHist();});
+$('sScore').addEventListener('click',()=>{sortBy='score';$('sScore').classList.add('on');$('sDate').classList.remove('on');renderHist();});
+$('clearHist').addEventListener('click',()=>{$('confirmClear').hidden=false;$('clearHist').hidden=true;});
+$('clearNo').addEventListener('click',()=>{$('confirmClear').hidden=true;$('clearHist').hidden=false;});
+$('clearYes').addEventListener('click',()=>{hist=[];try{localStorage.removeItem(STORE);}catch(e){}$('confirmClear').hidden=true;current=null;live=null;render();});
+$('timeline').addEventListener('pointerdown',e=>{
+  if(!canPlay())return;const svg=$('timeline'),rc=svg.getBoundingClientRect();
+  const x=(e.clientX-rc.left)/rc.width*TL.W;const t=clamp((x-TL.l)/(TL.W-TL.l-TL.r),0,1)*current.entry.duration;vid.pause();vid.currentTime=Math.round(t*live.fps)/live.fps;});
+renderCriteria();render();
+</script>
+
+</body>
+</html>
