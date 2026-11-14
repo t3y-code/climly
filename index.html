@@ -543,7 +543,7 @@ async function getModels(){
   if(mn&&bp)return;
   try{await tf.setBackend('webgl');}catch(e){await tf.setBackend('cpu');}
   await tf.ready();
-  [mn,bp]=await Promise.all([tf.loadGraphModel('movenet-lightning.json'),tf.loadGraphModel('blazepose-full.json')]);
+  [mn,bp]=await Promise.all([tf.loadGraphModel('./movenet-lightning.json'),tf.loadGraphModel('./blazepose-full.json')]);
   tf.tidy(()=>{mn.execute(tf.zeros([1,192,192,3],'int32'));bp.execute(tf.zeros([1,256,256,3]),['ld_3d','output_poseflag']);});
 }
 const mc=document.createElement('canvas');mc.width=mc.height=192;const mctx=mc.getContext('2d',{willReadFrequently:true});
